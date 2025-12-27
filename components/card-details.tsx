@@ -29,7 +29,6 @@ import {
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-import { storage } from "@/lib/storage"
 
 interface CardData {
   id: number
@@ -75,19 +74,23 @@ export function CardDetails({ cardId }: { cardId: number }) {
     custom_field: "",
   })
 
-  const fetchCard = () => {
+  const fetchCard = async () => {
     try {
-      const cardData = storage.getCardById(cardId)
-      setCard(cardData || null)
+      const response = await fetch(`/api/cards/${cardId}`)
+      if (!response.ok) throw new Error("Failed to fetch card")
+      const cardData = await response.json()
+      setCard(cardData)
     } catch (error) {
       console.error("[v0] Error fetching card:", error)
       toast({ title: "Ошибка", description: "Не удалось загрузить карточку", variant: "destructive" })
     }
   }
 
-  const fetchItems = () => {
+  const fetchItems = async () => {
     try {
-      const cardItems = storage.getCardItemsByCardId(cardId)
+      const response = await fetch(`/api/cards/${cardId}/items`)
+      if (!response.ok) throw new Error("Failed to fetch items")
+      const cardItems = await response.json()
       setItems(cardItems)
     } catch (error) {
       console.error("[v0] Error fetching items:", error)
@@ -102,35 +105,41 @@ export function CardDetails({ cardId }: { cardId: number }) {
     fetchItems()
   }, [cardId])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     try {
       if (editingItem) {
-        const updated = storage.updateCardItem(editingItem.id, {
-          type: formData.type as any,
-          label: formData.label,
-          value: formData.value,
-          custom_field: formData.custom_field || undefined,
+        const response = await fetch(`/api/cards/${cardId}/items/${editingItem.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: formData.type,
+            label: formData.label,
+            value: formData.value,
+            custom_field: formData.custom_field || undefined,
+          }),
         })
 
-        if (!updated) {
-          throw new Error("Не удалось обновить пункт")
-        }
+        if (!response.ok) throw new Error("Не удалось обновить пункт")
 
         toast({ title: "Успешно", description: "Пункт обновлен" })
       } else {
-        // Calculate next order index
         const maxOrder = items.length > 0 ? Math.max(...items.map((i) => i.order_index)) : 0
 
-        storage.createCardItem({
-          card_id: cardId,
-          type: formData.type as any,
-          label: formData.label,
-          value: formData.value,
-          custom_field: formData.custom_field || undefined,
-          order_index: maxOrder + 1,
+        const response = await fetch(`/api/cards/${cardId}/items`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: formData.type,
+            label: formData.label,
+            value: formData.value,
+            custom_field: formData.custom_field || undefined,
+            order_index: maxOrder + 1,
+          }),
         })
+
+        if (!response.ok) throw new Error("Не удалось добавить пункт")
 
         toast({ title: "Успешно", description: "Пункт добавлен" })
       }
@@ -144,15 +153,15 @@ export function CardDetails({ cardId }: { cardId: number }) {
     }
   }
 
-  const handleDelete = (itemId: number) => {
+  const handleDelete = async (itemId: number) => {
     if (!confirm("Вы уверены, что хотите удалить этот пункт?")) return
 
     try {
-      const success = storage.deleteCardItem(itemId)
+      const response = await fetch(`/api/cards/${cardId}/items/${itemId}`, {
+        method: "DELETE",
+      })
 
-      if (!success) {
-        throw new Error("Не удалось удалить пункт")
-      }
+      if (!response.ok) throw new Error("Не удалось удалить пункт")
 
       toast({ title: "Успешно", description: "Пункт удален" })
       fetchItems()

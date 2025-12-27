@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Lock, CheckSquare, Users, TrendingUp } from "lucide-react"
 import { useAuth } from "@/components/auth-provider"
-import { storage } from "@/lib/storage"
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
+import { ChartContainer } from "@/components/ui/chart"
 
 export default function DashboardPage() {
   const { user } = useAuth()
@@ -14,14 +15,63 @@ export default function DashboardPage() {
     tasks: 0,
     users: 0,
   })
+  const [taskStats, setTaskStats] = useState<Array<{ status: string; count: number; fill: string }>>([])
 
   useEffect(() => {
-    setStats({
-      cards: storage.getCards().length,
-      tasks: storage.getTasks().filter((t) => t.status !== "completed" && t.status !== "cancelled").length,
-      users: storage.getUsers().length,
-    })
-  }, [])
+    const fetchStats = async () => {
+      try {
+        const [tasksRes, cardsRes, usersRes] = await Promise.all([
+          fetch("/api/tasks"),
+          fetch("/api/cards"),
+          user?.role === "admin" ? fetch("/api/users") : Promise.resolve({ ok: false }),
+        ])
+
+        let allTasks = []
+        if (tasksRes.ok) {
+          allTasks = await tasksRes.json()
+        }
+
+        let allCards = []
+        if (cardsRes.ok) {
+          allCards = await cardsRes.json()
+        }
+
+        let allUsers = []
+        if (usersRes.ok) {
+          allUsers = await usersRes.json()
+        }
+
+        const pending = allTasks.filter((t) => t.status === "pending").length
+        const inProgress = allTasks.filter((t) => t.status === "in-progress").length
+        const completed = allTasks.filter((t) => t.status === "completed").length
+        const cancelled = allTasks.filter((t) => t.status === "cancelled").length
+
+        setTaskStats([
+          { status: "В ожидании", count: pending, fill: "hsl(var(--chart-1))" },
+          { status: "В работе", count: inProgress, fill: "hsl(var(--chart-2))" },
+          { status: "Завершено", count: completed, fill: "hsl(var(--chart-3))" },
+          { status: "Отменено", count: cancelled, fill: "hsl(var(--chart-4))" },
+        ])
+
+        setStats({
+          cards: allCards.length,
+          tasks: allTasks.filter((t) => t.status !== "completed" && t.status !== "cancelled").length,
+          users: allUsers.length,
+        })
+      } catch (error) {
+        console.error("[v0] Error fetching stats:", error)
+      }
+    }
+
+    fetchStats()
+  }, [user])
+
+  const chartConfig = {
+    count: {
+      label: "Задач",
+      color: "hsl(var(--primary))",
+    },
+  }
 
   if (!user) {
     return null
@@ -86,6 +136,50 @@ export default function DashboardPage() {
             </Card>
           )}
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CheckSquare className="h-5 w-5 text-primary" />
+              Статистика задач
+            </CardTitle>
+            <CardDescription>Распределение задач по статусам</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={taskStats}>
+                  <XAxis
+                    dataKey="status"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "hsl(var(--muted))" }}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--popover))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      padding: "8px 12px",
+                    }}
+                    labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
+                    itemStyle={{ color: "hsl(var(--foreground))" }}
+                  />
+                  <Bar dataKey="count" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   )

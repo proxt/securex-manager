@@ -11,7 +11,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "./ui/card"
 import { Plus, Trash2, Pencil, ExternalLink, Lock, Eye, Copy, Check, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { storage } from "@/lib/storage"
 import { useAuth } from "./auth-provider"
 
 interface CardData {
@@ -62,10 +61,12 @@ export function CardsManager() {
 
   const [customFields, setCustomFields] = useState<CustomField[]>([])
 
-  const fetchCards = () => {
+  const fetchCards = async () => {
     try {
-      const allCards = storage.getCards()
-      setCards(allCards)
+      const response = await fetch("/api/cards")
+      if (!response.ok) throw new Error("Failed to fetch cards")
+      const data = await response.json()
+      setCards(data)
     } catch (error) {
       console.error("[v0] Error fetching cards:", error)
       toast({ title: "Ошибка", description: "Не удалось загрузить доступы", variant: "destructive" })
@@ -78,8 +79,10 @@ export function CardsManager() {
     fetchCards()
   }, [])
 
-  const fetchCardItems = (cardId: number) => {
-    const items = storage.getCardItemsByCardId(cardId)
+  const fetchCardItems = async (cardId: number) => {
+    const response = await fetch(`/api/cards/${cardId}/items`)
+    if (!response.ok) return
+    const items = await response.json()
     setCardItems(items.sort((a, b) => a.order_index - b.order_index))
   }
 
@@ -96,60 +99,25 @@ export function CardsManager() {
     setTimeout(() => setCopiedField(null), 2000)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     try {
       if (editingCard) {
-        const updated = storage.updateCard(editingCard.id, {
-          title: formData.title,
-          description: formData.description,
+        const response = await fetch(`/api/cards/${editingCard.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: formData.title,
+            description: formData.description,
+            url: formData.url,
+            login: formData.login,
+            password: formData.password,
+            customFields,
+          }),
         })
 
-        if (!updated) {
-          throw new Error("Не удалось обновить доступ")
-        }
-
-        const existingItems = storage.getCardItemsByCardId(editingCard.id)
-        existingItems.forEach((item) => storage.deleteCardItem(item.id))
-
-        let orderIndex = 0
-        if (formData.url) {
-          storage.createCardItem({
-            card_id: editingCard.id,
-            type: "link",
-            label: "URL",
-            value: formData.url,
-            order_index: orderIndex++,
-          })
-        }
-        if (formData.login) {
-          storage.createCardItem({
-            card_id: editingCard.id,
-            type: "login",
-            label: "Логин",
-            value: formData.login,
-            order_index: orderIndex++,
-          })
-        }
-        if (formData.password) {
-          storage.createCardItem({
-            card_id: editingCard.id,
-            type: "password",
-            label: "Пароль",
-            value: formData.password,
-            order_index: orderIndex++,
-          })
-        }
-        customFields.forEach((field) => {
-          storage.createCardItem({
-            card_id: editingCard.id,
-            type: "custom",
-            label: field.label,
-            value: field.value,
-            order_index: orderIndex++,
-          })
-        })
+        if (!response.ok) throw new Error("Не удалось обновить доступ")
 
         toast({ title: "Успешно", description: "Доступ обновлен" })
       } else {
@@ -157,50 +125,20 @@ export function CardsManager() {
           throw new Error("Пользователь не авторизован")
         }
 
-        const newCard = storage.createCard({
-          title: formData.title,
-          description: formData.description,
-          creator_id: user.id,
-          creator_name: user.username,
+        const response = await fetch("/api/cards", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: formData.title,
+            description: formData.description,
+            url: formData.url,
+            login: formData.login,
+            password: formData.password,
+            customFields,
+          }),
         })
 
-        let orderIndex = 0
-        if (formData.url) {
-          storage.createCardItem({
-            card_id: newCard.id,
-            type: "link",
-            label: "URL",
-            value: formData.url,
-            order_index: orderIndex++,
-          })
-        }
-        if (formData.login) {
-          storage.createCardItem({
-            card_id: newCard.id,
-            type: "login",
-            label: "Логин",
-            value: formData.login,
-            order_index: orderIndex++,
-          })
-        }
-        if (formData.password) {
-          storage.createCardItem({
-            card_id: newCard.id,
-            type: "password",
-            label: "Пароль",
-            value: formData.password,
-            order_index: orderIndex++,
-          })
-        }
-        customFields.forEach((field) => {
-          storage.createCardItem({
-            card_id: newCard.id,
-            type: "custom",
-            label: field.label,
-            value: field.value,
-            order_index: orderIndex++,
-          })
-        })
+        if (!response.ok) throw new Error("Не удалось создать доступ")
 
         toast({ title: "Успешно", description: "Доступ создан" })
       }
@@ -215,15 +153,13 @@ export function CardsManager() {
     }
   }
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (!confirm("Вы уверены, что хотите удалить этот доступ?")) return
 
     try {
-      const success = storage.deleteCard(id)
+      const response = await fetch(`/api/cards/${id}`, { method: "DELETE" })
 
-      if (!success) {
-        throw new Error("Не удалось удалить доступ")
-      }
+      if (!response.ok) throw new Error("Не удалось удалить доступ")
 
       toast({ title: "Успешно", description: "Доступ удален" })
       fetchCards()
@@ -232,9 +168,11 @@ export function CardsManager() {
     }
   }
 
-  const openEditDialog = (card: CardData) => {
+  const openEditDialog = async (card: CardData) => {
     setEditingCard(card)
-    const items = storage.getCardItemsByCardId(card.id)
+    const response = await fetch(`/api/cards/${card.id}/items`)
+    if (!response.ok) return
+    const items = await response.json()
 
     const urlItem = items.find((i) => i.type === "link")
     const loginItem = items.find((i) => i.type === "login")

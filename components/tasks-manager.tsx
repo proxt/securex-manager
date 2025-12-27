@@ -14,7 +14,6 @@ import { Badge } from "./ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
 import { Plus, Trash2, Pencil, Calendar, User } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { storage } from "@/lib/storage"
 import { useAuth } from "./auth-provider"
 
 interface Task {
@@ -90,10 +89,12 @@ export function TasksManager() {
     card_id: "",
   })
 
-  const fetchTasks = () => {
+  const fetchTasks = async () => {
     try {
-      const allTasks = storage.getTasks()
-      setTasks(allTasks)
+      const response = await fetch("/api/tasks")
+      if (!response.ok) throw new Error("Failed to fetch tasks")
+      const data = await response.json()
+      setTasks(data)
     } catch (error) {
       console.error("[v0] Error fetching tasks:", error)
       toast({ title: "Ошибка", description: "Не удалось загрузить задачи", variant: "destructive" })
@@ -102,19 +103,23 @@ export function TasksManager() {
     }
   }
 
-  const fetchCards = () => {
+  const fetchCards = async () => {
     try {
-      const allCards = storage.getCards()
-      setCards(allCards)
+      const response = await fetch("/api/cards")
+      if (!response.ok) return
+      const data = await response.json()
+      setCards(data)
     } catch (error) {
       console.error("[v0] Error fetching cards:", error)
     }
   }
 
-  const fetchUsers = () => {
+  const fetchUsers = async () => {
     try {
-      const allUsers = storage.getUsers()
-      setUsers(allUsers)
+      const response = await fetch("/api/users")
+      if (!response.ok) return
+      const data = await response.json()
+      setUsers(data)
     } catch (error) {
       console.error("[v0] Error fetching users:", error)
     }
@@ -126,7 +131,7 @@ export function TasksManager() {
     fetchUsers()
   }, [])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     try {
@@ -137,41 +142,31 @@ export function TasksManager() {
       const assignedTo = formData.assigned_to ? Number.parseInt(formData.assigned_to) : undefined
       const cardId = formData.card_id ? Number.parseInt(formData.card_id) : undefined
 
-      const assigneeName = assignedTo ? storage.getUserById(assignedTo)?.username : undefined
-      const cardTitle = cardId ? storage.getCardById(cardId)?.title : undefined
+      const assigneeName = assignedTo ? users.find((u) => u.id === assignedTo)?.username : undefined
+      const cardTitle = cardId ? cards.find((c) => c.id === cardId)?.title : undefined
 
       if (editingTask) {
-        const updated = storage.updateTask(editingTask.id, {
-          title: formData.title,
-          description: formData.description,
-          status: formData.status as any,
-          priority: formData.priority as any,
-          due_date: formData.due_date || undefined,
-          assigned_to: assignedTo,
-          assignee_name: assigneeName,
-          card_id: cardId,
-          card_title: cardTitle,
+        const response = await fetch(`/api/tasks/${editingTask.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
         })
 
-        if (!updated) {
-          throw new Error("Не удалось обновить задачу")
-        }
+        if (!response.ok) throw new Error("Не удалось обновить задачу")
 
         toast({ title: "Успешно", description: "Задача обновлена" })
       } else {
-        storage.createTask({
-          title: formData.title,
-          description: formData.description,
-          status: formData.status as any,
-          priority: formData.priority as any,
-          due_date: formData.due_date || undefined,
-          assigned_to: assignedTo,
-          assignee_name: assigneeName,
-          creator_id: user.id,
-          creator_name: user.username,
-          card_id: cardId,
-          card_title: cardTitle,
+        const response = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...formData,
+            creator_id: user.id,
+            creator_name: user.username,
+          }),
         })
+
+        if (!response.ok) throw new Error("Не удалось создать задачу")
 
         toast({ title: "Успешно", description: "Задача создана" })
       }
@@ -193,15 +188,13 @@ export function TasksManager() {
     }
   }
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (!confirm("Вы уверены, что хотите удалить эту задачу?")) return
 
     try {
-      const success = storage.deleteTask(id)
+      const response = await fetch(`/api/tasks/${id}`, { method: "DELETE" })
 
-      if (!success) {
-        throw new Error("Не удалось удалить задачу")
-      }
+      if (!response.ok) throw new Error("Не удалось удалить задачу")
 
       toast({ title: "Успешно", description: "Задача удалена" })
       fetchTasks()

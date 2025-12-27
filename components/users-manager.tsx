@@ -12,7 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Badge } from "./ui/badge"
 import { Plus, Trash2, Pencil } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { storage } from "@/lib/storage"
 
 interface User {
   id: number
@@ -34,10 +33,12 @@ export function UsersManager() {
     role: "user",
   })
 
-  const fetchUsers = () => {
+  const fetchUsers = async () => {
     try {
-      const usersData = storage.getUsers()
-      setUsers(usersData as any)
+      const response = await fetch("/api/users")
+      if (!response.ok) throw new Error("Failed to fetch users")
+      const data = await response.json()
+      setUsers(data)
     } catch (error) {
       console.error("[v0] Error fetching users:", error)
       toast({ title: "Ошибка", description: "Не удалось загрузить пользователей", variant: "destructive" })
@@ -50,32 +51,31 @@ export function UsersManager() {
     fetchUsers()
   }, [])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     try {
       if (editingUser) {
-        const updateData: any = { role: formData.role as "admin" | "user" }
-        if (formData.password) {
-          updateData.password = formData.password
-        }
-        if (formData.username && formData.username !== editingUser.username) {
-          updateData.username = formData.username
-        }
+        const response = await fetch(`/api/users/${editingUser.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        })
 
-        storage.updateUser(editingUser.id, updateData)
+        if (!response.ok) throw new Error("Не удалось обновить пользователя")
         toast({ title: "Успешно", description: "Пользователь обновлен" })
       } else {
         if (!formData.username || !formData.password) {
           throw new Error("Логин и пароль обязательны")
         }
 
-        storage.createUser({
-          username: formData.username,
-          password: formData.password,
-          role: formData.role as "admin" | "user",
+        const response = await fetch("/api/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
         })
 
+        if (!response.ok) throw new Error("Не удалось создать пользователя")
         toast({ title: "Успешно", description: "Пользователь создан" })
       }
 
@@ -88,14 +88,12 @@ export function UsersManager() {
     }
   }
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (!confirm("Вы уверены, что хотите удалить этого пользователя?")) return
 
     try {
-      const success = storage.deleteUser(id)
-      if (!success) {
-        throw new Error("Не удалось удалить пользователя")
-      }
+      const response = await fetch(`/api/users/${id}`, { method: "DELETE" })
+      if (!response.ok) throw new Error("Не удалось удалить пользователя")
 
       toast({ title: "Успешно", description: "Пользователь удален" })
       fetchUsers()
