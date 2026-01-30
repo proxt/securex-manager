@@ -40,9 +40,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-xl border-2">
         <CardHeader className="space-y-3 text-center">
           <div className="flex justify-center">
-            <div className="p-3 rounded-2xl bg-primary/10">
-              <img src="/logo.png" alt="SecureX Manager" className="h-16 w-16" />
-            </div>
+            <img src="/logo.png" alt="SecureX Manager" className="h-20 w-auto object-contain" />
           </div>
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
             SecureX Manager

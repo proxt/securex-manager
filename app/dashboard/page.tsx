@@ -9,7 +9,7 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recha
 import { ChartContainer } from "@/components/ui/chart"
 
 export default function DashboardPage() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [stats, setStats] = useState({
     cards: 0,
     tasks: 0,
@@ -76,7 +76,7 @@ export default function DashboardPage() {
     },
   }
 
-  if (!user) {
+  if (authLoading || !user) {
     return null
   }
 

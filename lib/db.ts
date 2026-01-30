@@ -34,7 +34,7 @@ const demoDb = {
           return [user ? [user] : [], null]
         }
         if (sqlLower.includes("where id")) {
-          const user = demoData.users.find(u => u.id === params?.[0])
+          const user = demoData.users.find(u => u.id === Number(params?.[0]))
           return [user ? [{ ...user, password: undefined }] : [], null]
         }
         return [demoData.users.map(u => ({ ...u, password: undefined })), null]

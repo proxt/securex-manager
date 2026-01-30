@@ -13,19 +13,35 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu"
-import { LayoutDashboard, CreditCard, CheckSquare, Users, LogOut } from "lucide-react"
+import { LayoutDashboard, CreditCard, CheckSquare, Users, LogOut, Loader2 } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { useEffect } from "react"
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth()
+  const { user, logout, loading } = useAuth()
   const pathname = usePathname()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login")
+    }
+  }, [loading, user, router])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Загрузка...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (!user) {
-    if (typeof window !== "undefined") {
-      window.location.href = "/login"
-    }
     return null
   }
 
@@ -44,7 +60,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-6">
             {/* SecureX Manager logo and branding */}
             <Link href="/dashboard" className="flex items-center gap-3">
-              <img src="/logo.png" alt="SecureX Manager" className="h-10 w-10" />
+              <img src="/logo.png" alt="SecureX Manager" className="h-10 w-auto object-contain" />
               <span className="font-bold text-xl bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                 SecureX Manager
               </span>
