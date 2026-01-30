@@ -94,7 +94,7 @@ export function TasksManager() {
       const response = await fetch("/api/tasks")
       if (!response.ok) throw new Error("Failed to fetch tasks")
       const data = await response.json()
-      setTasks(data)
+      setTasks(Array.isArray(data) ? data : (data.tasks || []))
     } catch (error) {
       console.error("[v0] Error fetching tasks:", error)
       toast({ title: "Ошибка", description: "Не удалось загрузить задачи", variant: "destructive" })
@@ -108,7 +108,7 @@ export function TasksManager() {
       const response = await fetch("/api/cards")
       if (!response.ok) return
       const data = await response.json()
-      setCards(data)
+      setCards(Array.isArray(data) ? data : (data.cards || []))
     } catch (error) {
       console.error("[v0] Error fetching cards:", error)
     }
@@ -119,7 +119,7 @@ export function TasksManager() {
       const response = await fetch("/api/users")
       if (!response.ok) return
       const data = await response.json()
-      setUsers(data)
+      setUsers(Array.isArray(data) ? data : (data.users || []))
     } catch (error) {
       console.error("[v0] Error fetching users:", error)
     }

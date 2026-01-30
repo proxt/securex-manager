@@ -11,7 +11,7 @@ export async function GET() {
 
     const [rows] = await db.execute("SELECT * FROM tasks ORDER BY created_at DESC")
 
-    return NextResponse.json({ tasks: rows })
+    return NextResponse.json(rows)
   } catch (error) {
     console.error("[v0] Get tasks error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

@@ -74,7 +74,9 @@ CREATE TABLE IF NOT EXISTS tasks (
 ) ENGINE=InnoDB;
 
 -- Insert default admin user
--- Password: 32Ipubib5429 (hashed with bcrypt)
-INSERT INTO users (username, password, role) 
-VALUES ('PROXT', '$2a$10$YourHashedPasswordHere', 'admin')
-ON DUPLICATE KEY UPDATE username = username;
+-- Password: 32Ipubib5429 (hashed with bcrypt, 10 rounds)
+-- IMPORTANT: Run the setup script (node database/setup.js) to create the admin user with proper password hash
+-- Or manually hash the password using bcrypt and insert here
+-- INSERT INTO users (username, password, role) 
+-- VALUES ('PROXT', '$2a$10$HASHED_PASSWORD_HERE', 'admin')
+-- ON DUPLICATE KEY UPDATE username = username;

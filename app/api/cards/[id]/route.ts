@@ -33,16 +33,55 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     const { id } = await params
     const body = await request.json()
-    const { title, description, url, username, password } = body
+    const { title, description, url, login, password, customFields } = body
 
+    // Update main card data
     await db.execute("UPDATE cards SET title = ?, description = ?, url = ?, username = ?, password = ? WHERE id = ?", [
       title,
       description || null,
       url || null,
-      username || null,
+      login || null,
       password || null,
       id,
     ])
+
+    // Delete existing items and recreate
+    await db.execute("DELETE FROM card_items WHERE card_id = ?", [id])
+
+    let orderIndex = 0
+    
+    if (url) {
+      await db.execute(
+        "INSERT INTO card_items (card_id, type, label, value, order_index) VALUES (?, ?, ?, ?, ?)",
+        [id, "link", "Ссылка", url, orderIndex++]
+      )
+    }
+    
+    if (login) {
+      await db.execute(
+        "INSERT INTO card_items (card_id, type, label, value, order_index) VALUES (?, ?, ?, ?, ?)",
+        [id, "login", "Логин", login, orderIndex++]
+      )
+    }
+    
+    if (password) {
+      await db.execute(
+        "INSERT INTO card_items (card_id, type, label, value, order_index) VALUES (?, ?, ?, ?, ?)",
+        [id, "password", "Пароль", password, orderIndex++]
+      )
+    }
+
+    // Create custom fields
+    if (customFields && Array.isArray(customFields)) {
+      for (const field of customFields) {
+        if (field.label && field.value) {
+          await db.execute(
+            "INSERT INTO card_items (card_id, type, label, value, order_index) VALUES (?, ?, ?, ?, ?)",
+            [id, "custom", field.label, field.value, orderIndex++]
+          )
+        }
+      }
+    }
 
     const [updated] = await db.execute("SELECT * FROM cards WHERE id = ?", [id])
 
@@ -61,6 +100,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     }
 
     const { id } = await params
+    // Delete card items first (foreign key constraint)
+    await db.execute("DELETE FROM card_items WHERE card_id = ?", [id])
     await db.execute("DELETE FROM cards WHERE id = ?", [id])
 
     return NextResponse.json({ success: true })

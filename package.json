@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "next build",
+    "db:setup": "node database/setup.js",
     "dev": "next dev",
     "lint": "eslint .",
     "start": "next start"

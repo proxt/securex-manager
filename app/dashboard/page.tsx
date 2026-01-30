@@ -26,19 +26,22 @@ export default function DashboardPage() {
           user?.role === "admin" ? fetch("/api/users") : Promise.resolve({ ok: false }),
         ])
 
-        let allTasks = []
+        let allTasks: any[] = []
         if (tasksRes.ok) {
-          allTasks = await tasksRes.json()
+          const tasksData = await tasksRes.json()
+          allTasks = Array.isArray(tasksData) ? tasksData : (tasksData.tasks || [])
         }
 
-        let allCards = []
+        let allCards: any[] = []
         if (cardsRes.ok) {
-          allCards = await cardsRes.json()
+          const cardsData = await cardsRes.json()
+          allCards = Array.isArray(cardsData) ? cardsData : (cardsData.cards || [])
         }
 
-        let allUsers = []
+        let allUsers: any[] = []
         if (usersRes.ok) {
-          allUsers = await usersRes.json()
+          const usersData = await usersRes.json()
+          allUsers = Array.isArray(usersData) ? usersData : (usersData.users || [])
         }
 
         const pending = allTasks.filter((t) => t.status === "pending").length

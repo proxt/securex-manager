@@ -66,7 +66,7 @@ export function CardsManager() {
       const response = await fetch("/api/cards")
       if (!response.ok) throw new Error("Failed to fetch cards")
       const data = await response.json()
-      setCards(data)
+      setCards(Array.isArray(data) ? data : (data.cards || []))
     } catch (error) {
       console.error("[v0] Error fetching cards:", error)
       toast({ title: "Ошибка", description: "Не удалось загрузить доступы", variant: "destructive" })
@@ -82,8 +82,9 @@ export function CardsManager() {
   const fetchCardItems = async (cardId: number) => {
     const response = await fetch(`/api/cards/${cardId}/items`)
     if (!response.ok) return
-    const items = await response.json()
-    setCardItems(items.sort((a, b) => a.order_index - b.order_index))
+    const data = await response.json()
+    const items = Array.isArray(data) ? data : (data.items || [])
+    setCardItems(items.sort((a: CardItem, b: CardItem) => a.order_index - b.order_index))
   }
 
   const showDetails = (card: CardData) => {
@@ -172,12 +173,13 @@ export function CardsManager() {
     setEditingCard(card)
     const response = await fetch(`/api/cards/${card.id}/items`)
     if (!response.ok) return
-    const items = await response.json()
+    const data = await response.json()
+    const items = Array.isArray(data) ? data : (data.items || [])
 
-    const urlItem = items.find((i) => i.type === "link")
-    const loginItem = items.find((i) => i.type === "login")
-    const passwordItem = items.find((i) => i.type === "password")
-    const customItems = items.filter((i) => i.type === "custom")
+    const urlItem = items.find((i: CardItem) => i.type === "link")
+    const loginItem = items.find((i: CardItem) => i.type === "login")
+    const passwordItem = items.find((i: CardItem) => i.type === "password")
+    const customItems = items.filter((i: CardItem) => i.type === "custom")
 
     setFormData({
       title: card.title,
@@ -187,7 +189,7 @@ export function CardsManager() {
       password: passwordItem?.value || "",
     })
 
-    setCustomFields(customItems.map((i) => ({ label: i.label, value: i.value })))
+    setCustomFields(customItems.map((i: CardItem) => ({ label: i.label, value: i.value })))
     setOpen(true)
   }
 

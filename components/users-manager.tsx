@@ -38,7 +38,7 @@ export function UsersManager() {
       const response = await fetch("/api/users")
       if (!response.ok) throw new Error("Failed to fetch users")
       const data = await response.json()
-      setUsers(data)
+      setUsers(Array.isArray(data) ? data : (data.users || []))
     } catch (error) {
       console.error("[v0] Error fetching users:", error)
       toast({ title: "Ошибка", description: "Не удалось загрузить пользователей", variant: "destructive" })

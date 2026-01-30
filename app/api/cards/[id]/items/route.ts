@@ -12,7 +12,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const { id } = await params
     const [rows] = await db.execute("SELECT * FROM card_items WHERE card_id = ? ORDER BY order_index ASC", [id])
 
-    return NextResponse.json({ items: rows })
+    return NextResponse.json(rows)
   } catch (error) {
     console.error("[v0] Get card items error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
